@@ -107,16 +107,16 @@ get_foreground_app() {
     fi
 }
 
-# Check if any selected game has a running process (foreground, background, or recent task)
+# Check if any selected game has an activity in the stack (foreground or minimized)
 any_game_running() {
     if [ ! -f "$GAMES_FILE" ] || [ ! -s "$GAMES_FILE" ]; then
         echo "false"
         return
     fi
+    local activities=$(dumpsys activity activities 2>/dev/null)
     while IFS= read -r pkg; do
         [ -z "$pkg" ] && continue
-        # Check if game has a running process (any state — foreground, background, cached)
-        if pidof "$pkg" >/dev/null 2>&1; then
+        if echo "$activities" | grep -q "$pkg/"; then
             echo "$pkg"
             return
         fi
