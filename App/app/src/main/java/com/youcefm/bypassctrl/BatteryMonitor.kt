@@ -154,4 +154,117 @@ object BatteryMonitor {
         return result.lines().filter { it.isNotBlank() }
     }
 
+    fun applyTouchOptimizations() {
+        ShellExecutor.exec("echo 1 > /data/bypass/touch_opt")
+        ShellExecutor.exec("echo 1 > /sys/devices/platform/goodix_ts.0/switch_report_rate")
+        ShellExecutor.exec("echo 1 > /sys/class/touch/touch_dev/enable_touch_raw")
+        ShellExecutor.exec("echo close > /sys/class/touch/touch_dev/scp_tp_mistouch_enable")
+        ShellExecutor.exec("echo 0 > /sys/class/touch/touch_dev/palm_sensor")
+        ShellExecutor.exec("echo 500 > /proc/touch_boost/boost_duration")
+        ShellExecutor.exec("echo 21 > /proc/touch_boost/boost_opp_cluster_0")
+        ShellExecutor.exec("echo 27 > /proc/touch_boost/boost_opp_cluster_1")
+        ShellExecutor.exec("echo 32 > /proc/touch_boost/boost_opp_cluster_2")
+        ShellExecutor.exec("echo 1 > /proc/touch_boost/boost_up")
+        ShellExecutor.exec("echo 1 > /proc/touch_boost/boost_down")
+    }
+
+    fun revertTouchOptimizations() {
+        ShellExecutor.exec("echo 0 > /data/bypass/touch_opt")
+        ShellExecutor.exec("echo 0 > /sys/devices/platform/goodix_ts.0/switch_report_rate")
+        // Keep raw touch enabled — device requires it
+        ShellExecutor.exec("echo open > /sys/class/touch/touch_dev/scp_tp_mistouch_enable")
+        ShellExecutor.exec("echo 0 > /sys/class/touch/touch_dev/palm_sensor")
+        ShellExecutor.exec("echo 100 > /proc/touch_boost/boost_duration")
+        ShellExecutor.exec("echo -1 > /proc/touch_boost/boost_opp_cluster_0")
+        ShellExecutor.exec("echo -1 > /proc/touch_boost/boost_opp_cluster_1")
+        ShellExecutor.exec("echo -1 > /proc/touch_boost/boost_opp_cluster_2")
+        ShellExecutor.exec("echo 0 > /proc/touch_boost/boost_up")
+        ShellExecutor.exec("echo 1 > /proc/touch_boost/boost_down")
+    }
+
+    fun applyDisableThermals() {
+        ShellExecutor.exec("echo 1 > /data/bypass/thermal_off")
+        ShellExecutor.exec("echo 0 > /sys/module/metis/parameters/thermal_break_enable")
+        ShellExecutor.exec("echo 999999 > /sys/module/mtk_perf_ioctl_magt/parameters/thermal_aware_threshold")
+        ShellExecutor.exec("echo 0 > /sys/kernel/fpsgo/fbt/enable_switch_down_throttle")
+    }
+
+    fun revertDisableThermals() {
+        ShellExecutor.exec("echo 0 > /data/bypass/thermal_off")
+        ShellExecutor.exec("echo 1 > /sys/module/metis/parameters/thermal_break_enable")
+        ShellExecutor.exec("echo -1 > /sys/module/mtk_perf_ioctl_magt/parameters/thermal_aware_threshold")
+        ShellExecutor.exec("echo 1 > /sys/kernel/fpsgo/fbt/enable_switch_down_throttle")
+    }
+
+    fun applyGodMode() {
+        ShellExecutor.exec("echo 1 > /data/bypass/god_mode")
+        // Network optimizations
+        applyNetworkOptimizations()
+        // Touch optimizations
+        applyTouchOptimizations()
+        // Disable thermals
+        applyDisableThermals()
+        // CPU performance governor
+        ShellExecutor.exec("echo performance > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor")
+        ShellExecutor.exec("echo performance > /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor")
+        ShellExecutor.exec("echo performance > /sys/devices/system/cpu/cpu7/cpufreq/scaling_governor")
+        // GPU max frequency
+        ShellExecutor.exec("echo performance > /sys/class/devfreq/13000000.mali/governor")
+        ShellExecutor.exec("echo 1300000000 > /sys/class/devfreq/13000000.mali/min_freq")
+        // DDR max frequency
+        ShellExecutor.exec("echo userspace > /sys/class/devfreq/mtk-dvfsrc-devfreq/governor")
+        ShellExecutor.exec("echo 8533000000 > /sys/class/devfreq/mtk-dvfsrc-devfreq/min_freq")
+        // CPU core control boost
+        ShellExecutor.exec("echo 4 > /sys/devices/system/cpu/cpu7/core_ctl/min_cpus")
+        ShellExecutor.exec("echo 1 > /sys/devices/system/cpu/cpu7/core_ctl/core_ctl_boost")
+        // Scheduler boost
+        ShellExecutor.exec("echo 1 > /proc/sys/kernel/sched_boost")
+        // CPUSETS
+        ShellExecutor.exec("echo 0-7 > /dev/cpuset/top-app/cpus")
+        ShellExecutor.exec("echo 0-7 > /dev/cpuset/foreground/cpus")
+        ShellExecutor.exec("echo 0-3 > /dev/cpuset/background/cpus")
+        ShellExecutor.exec("echo 0-3 > /dev/cpuset/system-background/cpus")
+        // FPSGO boost
+        ShellExecutor.exec("echo 1 > /sys/kernel/fpsgo/fbt/boost_ta")
+        ShellExecutor.exec("echo 1 > /sys/kernel/fpsgo/fbt/boost_VIP")
+        ShellExecutor.exec("echo 1 > /sys/kernel/fpsgo/fbt/blc_boost")
+        ShellExecutor.exec("echo 1 > /sys/kernel/fpsgo/fbt/enable_uclamp_boost")
+        // IO optimization
+        ShellExecutor.exec("echo kyber > /sys/block/sda/queue/scheduler")
+        ShellExecutor.exec("echo 0 > /proc/sys/vm/swappiness")
+        ShellExecutor.exec("echo 5 > /proc/sys/vm/dirty_ratio")
+        ShellExecutor.exec("echo 1 > /proc/sys/vm/dirty_background_ratio")
+        ShellExecutor.exec("echo 50 > /proc/sys/vm/vfs_cache_pressure")
+    }
+
+    fun revertGodMode() {
+        ShellExecutor.exec("echo 0 > /data/bypass/god_mode")
+        revertNetworkOptimizations()
+        revertTouchOptimizations()
+        revertDisableThermals()
+        // CPU governor back
+        ShellExecutor.exec("echo schedutil > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor")
+        ShellExecutor.exec("echo schedutil > /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor")
+        ShellExecutor.exec("echo schedutil > /sys/devices/system/cpu/cpu7/cpufreq/scaling_governor")
+        // GPU back
+        ShellExecutor.exec("echo simple_ondemand > /sys/class/devfreq/13000000.mali/governor")
+        // DDR back
+        ShellExecutor.exec("echo simple_ondemand > /sys/class/devfreq/mtk-dvfsrc-devfreq/governor")
+        // CPUSETS back
+        ShellExecutor.exec("echo 0-7 > /dev/cpuset/top-app/cpus")
+        ShellExecutor.exec("echo 0-6 > /dev/cpuset/foreground/cpus")
+        ShellExecutor.exec("echo 0-3 > /dev/cpuset/background/cpus")
+        ShellExecutor.exec("echo 0-3 > /dev/cpuset/system-background/cpus")
+        // Scheduler boost off
+        ShellExecutor.exec("echo 0 > /proc/sys/kernel/sched_boost")
+        // FPSGO boost off
+        ShellExecutor.exec("echo 0 > /sys/kernel/fpsgo/fbt/boost_ta")
+        ShellExecutor.exec("echo 0 > /sys/kernel/fpsgo/fbt/boost_VIP")
+        ShellExecutor.exec("echo 0 > /sys/kernel/fpsgo/fbt/blc_boost")
+        ShellExecutor.exec("echo 0 > /sys/kernel/fpsgo/fbt/enable_uclamp_boost")
+        // IO back
+        ShellExecutor.exec("echo mq-deadline > /sys/block/sda/queue/scheduler")
+        ShellExecutor.exec("echo 50 > /proc/sys/vm/swappiness")
+    }
+
 }

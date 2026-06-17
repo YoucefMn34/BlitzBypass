@@ -32,11 +32,20 @@ mkdir -p "$BYPASS_DIR"
 # Game list (newline-separated package names)
 [ -f "$BYPASS_DIR/games" ] || touch "$BYPASS_DIR/games"
 
+# Touch optimizations (1=enabled, 0=disabled)
+[ -f "$BYPASS_DIR/touch_opt" ] || echo "0" > "$BYPASS_DIR/touch_opt"
+
+# Disable thermals (1=disabled, 0=enabled)
+[ -f "$BYPASS_DIR/thermal_off" ] || echo "0" > "$BYPASS_DIR/thermal_off"
+
+# God mode (1=enabled, 0=disabled)
+[ -f "$BYPASS_DIR/god_mode" ] || echo "0" > "$BYPASS_DIR/god_mode"
+
 # Log file
 [ -f "$BYPASS_DIR/daemon.log" ] || touch "$BYPASS_DIR/daemon.log"
 
 # Permissions (app needs to read/write without root)
-chmod 666 "$BYPASS_DIR/state" "$BYPASS_DIR/config" "$BYPASS_DIR/temp_config" "$BYPASS_DIR/daemon.log" "$BYPASS_DIR/auto_open" "$BYPASS_DIR/net_opt" "$BYPASS_DIR/games_enabled" "$BYPASS_DIR/games"
+chmod 666 "$BYPASS_DIR/state" "$BYPASS_DIR/config" "$BYPASS_DIR/temp_config" "$BYPASS_DIR/daemon.log" "$BYPASS_DIR/auto_open" "$BYPASS_DIR/net_opt" "$BYPASS_DIR/games_enabled" "$BYPASS_DIR/games" "$BYPASS_DIR/touch_opt" "$BYPASS_DIR/thermal_off" "$BYPASS_DIR/god_mode"
 
 # Save original constant_charge_current on first boot
 if [ ! -f "$BYPASS_DIR/original_cc" ]; then

@@ -107,7 +107,7 @@ get_foreground_app() {
     fi
 }
 
-# Check if any selected game has an active activity (foreground or recent task)
+# Check if any selected game has a running process (foreground, background, or recent task)
 any_game_running() {
     if [ ! -f "$GAMES_FILE" ] || [ ! -s "$GAMES_FILE" ]; then
         echo "false"
@@ -115,18 +115,10 @@ any_game_running() {
     fi
     while IFS= read -r pkg; do
         [ -z "$pkg" ] && continue
-        # Check if game has any activity in the task stack (visible or recent)
-        if dumpsys activity activities 2>/dev/null | grep -q "$pkg"; then
-            # Double check: game must have a running process with decent oom_score (not cached)
-            local pid=$(pidof "$pkg" 2>/dev/null | awk '{print $1}')
-            if [ -n "$pid" ] && [ -f "/proc/$pid/oom_score_adj" ]; then
-                local oom=$(cat "/proc/$pid/oom_score_adj" 2>/dev/null)
-                # oom_score_adj < 900 means not fully cached/killed
-                if [ -n "$oom" ] && [ "$oom" -lt 900 ] 2>/dev/null; then
-                    echo "$pkg"
-                    return
-                fi
-            fi
+        # Check if game has a running process (any state — foreground, background, cached)
+        if pidof "$pkg" >/dev/null 2>&1; then
+            echo "$pkg"
+            return
         fi
     done < "$GAMES_FILE"
     echo "false"
