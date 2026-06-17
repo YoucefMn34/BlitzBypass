@@ -110,4 +110,48 @@ object BatteryMonitor {
         val resume: Int
     )
 
+    fun setAutoOpen(enabled: Boolean) {
+        val value = if (enabled) "1" else "0"
+        ShellExecutor.exec("echo $value > /data/bypass/auto_open")
+    }
+
+    fun readAutoOpen(): Boolean {
+        val result = ShellExecutor.exec("cat /data/bypass/auto_open 2>/dev/null || echo 1")
+        return result.trim() == "1"
+    }
+
+    fun applyNetworkOptimizations() {
+        ShellExecutor.exec("echo 1 > /data/bypass/net_opt")
+        val cmd = """sysctl -w net.ipv4.tcp_congestion_control=bbr && sysctl -w net.core.default_qdisc=fq && sysctl -w net.core.rmem_max=16777216 && sysctl -w net.core.wmem_max=16777216 && sysctl -w net.core.rmem_default=1048576 && sysctl -w net.core.wmem_default=1048576 && sysctl -w net.ipv4.tcp_fastopen=3 && sysctl -w net.ipv4.tcp_low_latency=1 && sysctl -w net.ipv4.tcp_mtu_probing=1 && sysctl -w net.ipv4.tcp_retries2=8 && sysctl -w net.ipv4.tcp_tw_reuse=1 && sysctl -w net.ipv4.tcp_sack=0 && sysctl -w net.ipv4.tcp_no_metrics_save=1 && sysctl -w net.core.busy_read=50 && sysctl -w net.core.busy_poll=50 && sysctl -w net.core.gro_flush_timeout=1000000 && sysctl -w net.core.rps_flow_cnt=32768"""
+        ShellExecutor.exec(cmd)
+        ShellExecutor.exec("for iface in /sys/class/net/wlan* /sys/class/net/rmnet*; do echo ff > \$iface/queues/rx-0/rps_cpus 2>/dev/null; done")
+    }
+
+    fun revertNetworkOptimizations() {
+        ShellExecutor.exec("echo 0 > /data/bypass/net_opt")
+        val cmd = """sysctl -w net.ipv4.tcp_congestion_control=cubic && sysctl -w net.core.default_qdisc=fq_codel && sysctl -w net.core.rmem_max=212992 && sysctl -w net.core.wmem_max=212992 && sysctl -w net.core.rmem_default=212992 && sysctl -w net.core.wmem_default=212992 && sysctl -w net.ipv4.tcp_fastopen=1 && sysctl -w net.ipv4.tcp_low_latency=0 && sysctl -w net.ipv4.tcp_mtu_probing=0 && sysctl -w net.ipv4.tcp_retries2=15 && sysctl -w net.ipv4.tcp_tw_reuse=0 && sysctl -w net.ipv4.tcp_sack=3 && sysctl -w net.ipv4.tcp_no_metrics_save=0 && sysctl -w net.core.busy_read=0 && sysctl -w net.core.busy_poll=0 && sysctl -w net.core.gro_flush_timeout=0 && sysctl -w net.core.rps_flow_cnt=0"""
+        ShellExecutor.exec(cmd)
+        ShellExecutor.exec("for iface in /sys/class/net/wlan* /sys/class/net/rmnet*; do echo 0 > \$iface/queues/rx-0/rps_cpus 2>/dev/null; done")
+    }
+
+    fun setGameMode(enabled: Boolean) {
+        val value = if (enabled) "1" else "0"
+        ShellExecutor.exec("echo $value > /data/bypass/games_enabled")
+    }
+
+    fun readGameMode(): Boolean {
+        val result = ShellExecutor.exec("cat /data/bypass/games_enabled 2>/dev/null || echo 0")
+        return result.trim() == "1"
+    }
+
+    fun saveGameList(packages: List<String>) {
+        val content = packages.joinToString("\n")
+        ShellExecutor.exec("echo '${content.replace("'", "'\\''")}' > /data/bypass/games")
+    }
+
+    fun readGameList(): List<String> {
+        val result = ShellExecutor.exec("cat /data/bypass/games 2>/dev/null")
+        return result.lines().filter { it.isNotBlank() }
+    }
+
 }

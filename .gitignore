@@ -1,0 +1,17 @@
+# Build outputs
+App/app/build/
+App/build/
+App/.gradle/
+App/local.properties
+App/.idea/
+App/.mimocode/
+
+# Module build artifacts
+Module/.DS_Store
+Module-original/.DS_Store
+
+# Misc
+*.apk
+*.zip
+*.iml
+*.log

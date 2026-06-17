@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/dashboardFragment">
+
+    <fragment
+        android:id="@+id/dashboardFragment"
+        android:name="com.youcefm.bypassctrl.dashboard.DashboardFragment"
+        android:label="Dashboard" />
+
+    <fragment
+        android:id="@+id/bypassFragment"
+        android:name="com.youcefm.bypassctrl.bypass.BypassFragment"
+        android:label="Bypass" />
+
+    <fragment
+        android:id="@+id/configFragment"
+        android:name="com.youcefm.bypassctrl.config.ConfigFragment"
+        android:label="Config" />
+
+    <fragment
+        android:id="@+id/logFragment"
+        android:name="com.youcefm.bypassctrl.log.LogFragment"
+        android:label="Log" />
+
+    <fragment
+        android:id="@+id/optimizationsFragment"
+        android:name="com.youcefm.bypassctrl.optimizations.OptimizationsFragment"
+        android:label="Optimizations" />
+</navigation>

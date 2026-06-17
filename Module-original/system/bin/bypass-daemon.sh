@@ -11,17 +11,11 @@ TEMP_CONFIG_FILE="$BYPASS_DIR/temp_config"
 ORIGINAL_CC_FILE="$BYPASS_DIR/original_cc"
 LOG_FILE="$BYPASS_DIR/daemon.log"
 AUTO_BYPASS_MARKER="$BYPASS_DIR/auto_bypass"
-AUTO_OPEN_FILE="$BYPASS_DIR/auto_open"
 CC_NODE="/sys/class/power_supply/battery/constant_charge_current"
-
-# Game mode files
-GAMES_ENABLED_FILE="$BYPASS_DIR/games_enabled"
-GAMES_FILE="$BYPASS_DIR/games"
 
 # App package
 APP_PACKAGE="com.youcefm.bypassctrl"
 ALERT_ACTIVITY="$APP_PACKAGE/.NotificationActivity"
-MAIN_ACTIVITY="$APP_PACKAGE/.MainActivity"
 
 # Config tracking
 LAST_PERCENT_CONFIG=""
@@ -34,17 +28,19 @@ log_msg() {
     mv "$LOG_FILE.tmp" "$LOG_FILE" 2>/dev/null
 }
 
-# Notification helper - uses broadcast receiver (no UI, won't open app)
+# Notification helper - uses AlertActivity (popup dialog)
+# This is more reliable than cmd notification on custom ROMs
 notify() {
     local title="$1"
     local text="$2"
 
-    /system/bin/am broadcast \
-        --user 0 \
-        -a "$APP_PACKAGE.NOTIFY" \
-        -n "$APP_PACKAGE/.NotificationReceiver" \
+    # Launch transparent activity with alert dialog
+    /system/bin/am start --user 0 \
+        -a android.intent.action.MAIN \
+        -n "$ALERT_ACTIVITY" \
         --es title "$title" \
         --es text "$text" \
+        -f 0x10000000 \
         >/dev/null 2>&1
 
     log_msg "NOTIFY: $title - $text"
@@ -97,41 +93,6 @@ is_manual_bypass() {
     fi
 }
 
-# Get foreground app package name (ignores our own app)
-get_foreground_app() {
-    local fg=$(dumpsys activity activities 2>/dev/null | grep -oE 'u0 [^ ]+' | head -1 | cut -d' ' -f2 | cut -d'/' -f1)
-    if [ "$fg" = "$APP_PACKAGE" ] || [ -z "$fg" ]; then
-        echo ""
-    else
-        echo "$fg"
-    fi
-}
-
-# Check if any selected game has an active activity (foreground or recent task)
-any_game_running() {
-    if [ ! -f "$GAMES_FILE" ] || [ ! -s "$GAMES_FILE" ]; then
-        echo "false"
-        return
-    fi
-    while IFS= read -r pkg; do
-        [ -z "$pkg" ] && continue
-        # Check if game has any activity in the task stack (visible or recent)
-        if dumpsys activity activities 2>/dev/null | grep -q "$pkg"; then
-            # Double check: game must have a running process with decent oom_score (not cached)
-            local pid=$(pidof "$pkg" 2>/dev/null | awk '{print $1}')
-            if [ -n "$pid" ] && [ -f "/proc/$pid/oom_score_adj" ]; then
-                local oom=$(cat "/proc/$pid/oom_score_adj" 2>/dev/null)
-                # oom_score_adj < 900 means not fully cached/killed
-                if [ -n "$oom" ] && [ "$oom" -lt 900 ] 2>/dev/null; then
-                    echo "$pkg"
-                    return
-                fi
-            fi
-        fi
-    done < "$GAMES_FILE"
-    echo "false"
-}
-
 # ============================================================
 # MAIN LOOP
 # ============================================================
@@ -153,10 +114,6 @@ rm -f "$AUTO_BYPASS_MARKER"
 LAST_TEMP_STATE="normal"
 LAST_PERCENT_STATE="normal"
 LAST_PLUGGED="unknown"
-LAST_CHARGING="false"
-LAST_GAME_STATE="none"
-LAST_GAME_PKG=""
-GAME_CONFIRM_COUNT=0
 LAST_STATE="charge"
 
 log_msg "=== Daemon v5 started ==="
@@ -176,11 +133,6 @@ while true; do
             LAST_TEMP_STATE="normal"
             rm -f "$AUTO_BYPASS_MARKER"
             log_msg "RESET: bypass->charge, temp state reset"
-        fi
-        if [ "$LAST_GAME_STATE" = "game" ]; then
-            LAST_GAME_STATE="none"
-            rm -f "$AUTO_BYPASS_MARKER"
-            log_msg "RESET: bypass->charge, game state reset"
         fi
     fi
     LAST_STATE="$CURRENT_STATE"
@@ -251,39 +203,6 @@ while true; do
             log_msg "RESET: Charger unplugged, percent state reset"
         fi
 
-        # Game mode: auto-bypass when selected game is running (foreground or background)
-        GAMES_ENABLED=$(cat "$GAMES_ENABLED_FILE" 2>/dev/null | tr -d ' \n')
-        if [ "$GAMES_ENABLED" = "1" ] && [ "$CHARGING" = "true" ]; then
-            GAME_PKG=$(any_game_running)
-            if [ "$GAME_PKG" != "false" ] && [ -n "$GAME_PKG" ]; then
-                GAME_CONFIRM_COUNT=$((GAME_CONFIRM_COUNT + 1))
-                if [ "$GAME_CONFIRM_COUNT" -ge 2 ] && [ "$LAST_GAME_STATE" != "game" ]; then
-                    echo "bypass" > "$STATE_FILE"
-                    touch "$AUTO_BYPASS_MARKER"
-                    notify "🎮 Game Detected" "$GAME_PKG is running — bypass activated"
-                    log_msg "GAME: Process confirmed ($GAME_PKG), bypass triggered"
-                    LAST_GAME_STATE="game"
-                    LAST_GAME_PKG="$GAME_PKG"
-                fi
-            else
-                GAME_CONFIRM_COUNT=0
-                if [ "$LAST_GAME_STATE" = "game" ]; then
-                    echo "charge" > "$STATE_FILE"
-                    rm -f "$AUTO_BYPASS_MARKER"
-                    notify "🎮 Game Exited" "$LAST_GAME_PKG closed — charging resumed"
-                    log_msg "GAME: No game running ($LAST_GAME_PKG exited), charging resumed"
-                    LAST_GAME_STATE="none"
-                    LAST_GAME_PKG=""
-                fi
-            fi
-        fi
-
-        if [ "$CHARGING" = "false" ] && [ "$LAST_GAME_STATE" = "game" ]; then
-            LAST_GAME_STATE="none"
-            rm -f "$AUTO_BYPASS_MARKER"
-            log_msg "RESET: Charger unplugged, game state reset"
-        fi
-
     fi
 
     if [ "$CURRENT_STATE" = "bypass" ]; then
@@ -299,17 +218,6 @@ while true; do
         LAST_PERCENT_STATE="normal"
         log_msg "AUTO: Charger unplugged while bypass, reverted to charge"
     fi
-
-    # Auto-open app on charger plug
-    AUTO_OPEN=$(cat "$AUTO_OPEN_FILE" 2>/dev/null | tr -d ' \n')
-    if [ "$AUTO_OPEN" = "1" ] && [ "$CHARGING" = "true" ] && [ "$LAST_CHARGING" = "false" ]; then
-        /system/bin/am start --user 0 \
-            -n "$MAIN_ACTIVITY" \
-            -f 0x10000000 \
-            >/dev/null 2>&1
-        log_msg "AUTO-OPEN: Charger connected, launching app"
-    fi
-    LAST_CHARGING="$CHARGING"
 
     LAST_PLUGGED="$PLUGGED"
 

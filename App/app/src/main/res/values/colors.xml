@@ -1,34 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="md_theme_primary">#4CD9A6</color>
-    <color name="md_theme_onPrimary">#003828</color>
-    <color name="md_theme_primaryContainer">#00523B</color>
-    <color name="md_theme_onPrimaryContainer">#6FF6C1</color>
-    <color name="md_theme_secondary">#B3CCBC</color>
-    <color name="md_theme_onSecondary">#1F352A</color>
-    <color name="md_theme_background">#191C1A</color>
-    <color name="md_theme_onBackground">#E1E3DF</color>
-    <color name="md_theme_surface">#191C1A</color>
-    <color name="md_theme_onSurface">#E1E3DF</color>
-    <color name="md_theme_surfaceVariant">#404944</color>
-    <color name="md_theme_onSurfaceVariant">#BFC9C2</color>
+    <color name="md_theme_primary">#D0BCFF</color>
+    <color name="md_theme_onPrimary">#381E72</color>
+    <color name="md_theme_primaryContainer">#4F378B</color>
+    <color name="md_theme_onPrimaryContainer">#EADDFF</color>
+    <color name="md_theme_secondary">#CCC2DC</color>
+    <color name="md_theme_onSecondary">#332D41</color>
+    <color name="md_theme_background">#1C1B1F</color>
+    <color name="md_theme_onBackground">#E6E1E5</color>
+    <color name="md_theme_surface">#1C1B1F</color>
+    <color name="md_theme_onSurface">#E6E1E5</color>
+    <color name="md_theme_surfaceVariant">#49454F</color>
+    <color name="md_theme_onSurfaceVariant">#CAC4D0</color>
 
-    <color name="bypass_active">#FF6B6B</color>
-    <color name="charge_active">#4CD9A6</color>
+    <color name="md_theme_surfaceContainer">#211F26</color>
+    <color name="md_theme_surfaceContainerHigh">#2B2930</color>
+    <color name="md_theme_surfaceContainerHighest">#36343B</color>
+    <color name="md_theme_surfaceDim">#141218</color>
+    <color name="md_theme_outline">#938F99</color>
+    <color name="md_theme_error">#FFB4AB</color>
+    <color name="md_theme_onError">#690005</color>
 
-    <color name="indicator_battery">#4CD9A6</color>
-    <color name="indicator_status">#64B5F6</color>
+    <color name="bypass_active">#FFB4AB</color>
+    <color name="charge_active">#A8F0C8</color>
+
+    <color name="indicator_battery">#A8F0C8</color>
+    <color name="indicator_status">#89B4FA</color>
     <color name="indicator_temp">#FFB74D</color>
-    <color name="indicator_voltage">#FFF176</color>
-    <color name="indicator_current">#4FC3F7</color>
-    <color name="indicator_power">#CE93D8</color>
-    <color name="indicator_cc">#B0BEC5</color>
+    <color name="indicator_voltage">#F9E2AF</color>
+    <color name="indicator_current">#89DCEB</color>
+    <color name="indicator_power">#CBA6F7</color>
+    <color name="indicator_cc">#9399B2</color>
 
-    <color name="temp_cool">#4CD9A6</color>
-    <color name="temp_mild">#FFD54F</color>
-    <color name="temp_warm">#FF9800</color>
-    <color name="temp_hot">#F44336</color>
+    <color name="temp_cool">#A8F0C8</color>
+    <color name="temp_mild">#F9E2AF</color>
+    <color name="temp_warm">#FFB74D</color>
+    <color name="temp_hot">#FFB4AB</color>
 
-    <color name="orange_500">#FF9800</color>
-    <color name="green_500">#4CAF50</color>
+    <color name="orange_500">#FFB74D</color>
+    <color name="green_500">#A8F0C8</color>
+
+    <color name="nav_bar">#1C1B1F</color>
 </resources>
