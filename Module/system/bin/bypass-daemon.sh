@@ -107,21 +107,27 @@ get_foreground_app() {
     fi
 }
 
-# Check if any selected game has an activity in the stack (foreground or minimized)
+# Check if any selected game is the foreground app
 any_game_running() {
     if [ ! -f "$GAMES_FILE" ] || [ ! -s "$GAMES_FILE" ]; then
         echo "false"
         return
     fi
-    local activities=$(dumpsys activity activities 2>/dev/null)
+    local fg=$(dumpsys activity activities 2>/dev/null | grep -oE 'ResumedActivity.*u0 [^ ]+' | head -1 | grep -oE 'u0 [^ ]+' | cut -d' ' -f2 | cut -d'/' -f1)
+    [ -z "$fg" ] && { echo "false"; return; }
     while IFS= read -r pkg; do
         [ -z "$pkg" ] && continue
-        if echo "$activities" | grep -q "$pkg/"; then
+        if [ "$fg" = "$pkg" ]; then
             echo "$pkg"
             return
         fi
     done < "$GAMES_FILE"
     echo "false"
+}
+
+# Check if a specific game process is still alive
+is_game_alive() {
+    pidof "$1" >/dev/null 2>&1
 }
 
 # ============================================================
@@ -140,6 +146,13 @@ if [ ! -f "$ORIGINAL_CC_FILE" ]; then
     chmod 666 "$ORIGINAL_CC_FILE"
 fi
 
+# On boot: if state is bypass but no auto_bypass marker exists, it's stale from before reboot
+BOOT_STATE=$(cat "$STATE_FILE" 2>/dev/null | tr -d ' 
+')
+if [ "$BOOT_STATE" = "bypass" ] && [ ! -f "$AUTO_BYPASS_MARKER" ]; then
+    echo "charge" > "$STATE_FILE"
+    log_msg "BOOT: Stale bypass state reset to charge"
+fi
 rm -f "$AUTO_BYPASS_MARKER"
 
 LAST_TEMP_STATE="normal"
@@ -243,29 +256,39 @@ while true; do
             log_msg "RESET: Charger unplugged, percent state reset"
         fi
 
-        # Game mode: auto-bypass when selected game is running (foreground or background)
+        # Game mode: bypass when game is foreground; keep bypass while process alive after minimizing
         GAMES_ENABLED=$(cat "$GAMES_ENABLED_FILE" 2>/dev/null | tr -d ' \n')
         if [ "$GAMES_ENABLED" = "1" ] && [ "$CHARGING" = "true" ]; then
             GAME_PKG=$(any_game_running)
             if [ "$GAME_PKG" != "false" ] && [ -n "$GAME_PKG" ]; then
+                # Game is in foreground — track it
                 GAME_CONFIRM_COUNT=$((GAME_CONFIRM_COUNT + 1))
+                LAST_GAME_PKG="$GAME_PKG"
                 if [ "$GAME_CONFIRM_COUNT" -ge 2 ] && [ "$LAST_GAME_STATE" != "game" ]; then
                     echo "bypass" > "$STATE_FILE"
                     touch "$AUTO_BYPASS_MARKER"
                     notify "🎮 Game Detected" "$GAME_PKG is running — bypass activated"
                     log_msg "GAME: Process confirmed ($GAME_PKG), bypass triggered"
                     LAST_GAME_STATE="game"
-                    LAST_GAME_PKG="$GAME_PKG"
                 fi
             else
-                GAME_CONFIRM_COUNT=0
-                if [ "$LAST_GAME_STATE" = "game" ]; then
-                    echo "charge" > "$STATE_FILE"
-                    rm -f "$AUTO_BYPASS_MARKER"
-                    notify "🎮 Game Exited" "$LAST_GAME_PKG closed — charging resumed"
-                    log_msg "GAME: No game running ($LAST_GAME_PKG exited), charging resumed"
-                    LAST_GAME_STATE="none"
-                    LAST_GAME_PKG=""
+                # Game left foreground — check if its process is still alive
+                if [ "$LAST_GAME_STATE" = "game" ] && [ -n "$LAST_GAME_PKG" ]; then
+                    if is_game_alive "$LAST_GAME_PKG"; then
+                        # Process still running (minimized) — keep bypass
+                        GAME_CONFIRM_COUNT=0
+                    else
+                        # Process dead — game killed, deactivate
+                        GAME_CONFIRM_COUNT=0
+                        echo "charge" > "$STATE_FILE"
+                        rm -f "$AUTO_BYPASS_MARKER"
+                        notify "🎮 Game Exited" "$LAST_GAME_PKG closed — charging resumed"
+                        log_msg "GAME: No game running ($LAST_GAME_PKG exited), charging resumed"
+                        LAST_GAME_STATE="none"
+                        LAST_GAME_PKG=""
+                    fi
+                else
+                    GAME_CONFIRM_COUNT=0
                 fi
             fi
         fi
